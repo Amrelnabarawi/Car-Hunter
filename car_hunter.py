@@ -67,9 +67,9 @@ SEARCH_RADIUS   = 300              # كيلومتر
 # From GitHub Secrets / Environment Variables
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_CHAT_ID   = os.getenv('TELEGRAM_CHAT_ID', '')
-GMAIL_USER         = os.getenv('GMAIL_USER', '')
-GMAIL_APP_PASSWORD = os.getenv('GMAIL_APP_PASSWORD', '')
-NOTIFY_EMAIL       = os.getenv('NOTIFY_EMAIL', GMAIL_USER)
+OUTLOOK_USER       = os.getenv('OUTLOOK_USER', 'amr.gamal89@outlook.com')
+OUTLOOK_PASSWORD   = os.getenv('OUTLOOK_PASSWORD', '')
+NOTIFY_EMAIL       = os.getenv('NOTIFY_EMAIL', 'amr.gamal89@outlook.com')
 ANTHROPIC_API_KEY  = os.getenv('ANTHROPIC_API_KEY', '')
 
 SEEN_FILE          = 'seen_cars.json'
@@ -749,19 +749,22 @@ def build_telegram_msg(car: dict) -> str:
 # NOTIFICATIONS: EMAIL
 # ============================================================
 def send_email(subject: str, html_body: str) -> bool:
-    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
-        logger.warning("Gmail not configured — skipping")
+    if not OUTLOOK_USER or not OUTLOOK_PASSWORD:
+        logger.warning("Outlook not configured — skipping")
         return False
     try:
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
-        msg['From']    = f"Car Hunter 🚗 <{GMAIL_USER}>"
+        msg['From']    = f"Car Hunter 🚗 <{OUTLOOK_USER}>"
         msg['To']      = NOTIFY_EMAIL
         msg.attach(MIMEText(html_body, 'html', 'utf-8'))
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            server.sendmail(GMAIL_USER, NOTIFY_EMAIL, msg.as_string())
-        logger.info("Email sent ✅")
+        # Outlook SMTP — port 587 + STARTTLS
+        with smtplib.SMTP('smtp.office365.com', 587) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(OUTLOOK_USER, OUTLOOK_PASSWORD)
+            server.sendmail(OUTLOOK_USER, NOTIFY_EMAIL, msg.as_string())
+        logger.info("Email sent via Outlook ✅")
         return True
     except Exception as e:
         logger.error(f"Email failed: {e}")
