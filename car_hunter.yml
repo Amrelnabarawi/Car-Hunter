@@ -1,0 +1,51 @@
+name: 🚗 Car Hunter — Hourly Search
+
+on:
+  schedule:
+    # Run every hour at :05 (UTC) — which is 01:05–23:05 German time
+    - cron: '5 * * * *'
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout repo (including seen_cars.json state) ─
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 2. Set up Python ──────────────────────────────────
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── 3. Install dependencies ───────────────────────────
+      - name: 📦 Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Run the car hunter ─────────────────────────────
+      - name: 🔍 Run Car Hunter
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          GMAIL_USER:         ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          NOTIFY_EMAIL:       ${{ secrets.NOTIFY_EMAIL }}
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python car_hunter.py
+
+      # ── 5. Save state back to repo ────────────────────────
+      - name: 💾 Save seen_cars.json & stats
+        if: always()   # Save even if script errors
+        run: |
+          git config --global user.name  "Car Hunter Bot"
+          git config --global user.email "bot@car-hunter.local"
+          git add -f seen_cars.json daily_stats.json 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "🚗 Update car state [$(date +'%Y-%m-%d %H:%M')]"
+          git push 2>/dev/null || true
